@@ -8,17 +8,16 @@ import cv2 as cv
 import numpy as np
 import scipy.stats
 import torch
+from PIL import Image
 from matplotlib import pyplot as plt
-from torchvision import transforms
 from tqdm import tqdm
 
 from config import device
 from data_gen import data_transforms
-from utils import align_face, get_central_face_attributes, get_all_face_attributes, draw_bboxes, ensure_folder
+from utils import align_face, get_central_face_attributes, get_all_face_attributes, draw_bboxes
 
 angles_file = 'data/angles.txt'
 lfw_pickle = 'data/lfw_funneled.pkl'
-transformer = data_transforms['val']
 
 
 def extract(filename):
@@ -30,7 +29,6 @@ def process():
     subjects = [d for d in os.listdir('data/lfw_funneled') if os.path.isdir(os.path.join('data/lfw_funneled', d))]
     assert (len(subjects) == 5749), "Number of subjects is: {}!".format(len(subjects))
 
-    print('Collecting file names...')
     file_names = []
     for i in tqdm(range(len(subjects))):
         sub = subjects[i]
@@ -43,18 +41,22 @@ def process():
 
     assert (len(file_names) == 13233), "Number of files is: {}!".format(len(file_names))
 
-    print('Aligning faces...')
     samples = []
     for item in tqdm(file_names):
         filename = item['filename']
         class_id = item['class_id']
         sub = item['subject']
-        is_valid, bounding_boxes, landmarks = get_central_face_attributes(filename)
 
-        if is_valid:
+        try:
+            bboxes, landmarks = get_central_face_attributes(filename)
+
             samples.append(
-                {'class_id': class_id, 'subject': sub, 'full_path': filename, 'bounding_boxes': bounding_boxes,
+                {'class_id': class_id, 'subject': sub, 'full_path': filename, 'bounding_boxes': bboxes,
                  'landmarks': landmarks})
+        except KeyboardInterrupt:
+            raise
+        except Exception as err:
+            print(err)
 
     with open(lfw_pickle, 'wb') as file:
         save = {
@@ -63,36 +65,19 @@ def process():
         pickle.dump(save, file, pickle.HIGHEST_PROTOCOL)
 
 
-def get_image(samples, file):
+def get_image(samples, transformer, file):
     filtered = [sample for sample in samples if file in sample['full_path'].replace('\\', '/')]
     assert (len(filtered) == 1), 'len(filtered): {} file:{}'.format(len(filtered), file)
     sample = filtered[0]
     full_path = sample['full_path']
     landmarks = sample['landmarks']
     img = align_face(full_path, landmarks)  # BGR
-    return img
-
-
-def transform(img, flip=False):
-    if flip:
-        img = cv.flip(img, 1)
-    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    img = transforms.ToPILImage()(img)
+    # img = blur_and_grayscale(img)
+    img = img[..., ::-1]  # RGB
+    img = Image.fromarray(img, 'RGB')  # RGB
     img = transformer(img)
     img = img.to(device)
     return img
-
-
-def get_feature(model, samples, file):
-    img = get_image(samples, file)
-    img = transform(img)
-    imgs = img.unsqueeze(dim=0)
-
-    with torch.no_grad():
-        output = model(imgs)
-
-    feature = output[0].cpu().numpy()
-    return feature / np.linalg.norm(feature)
 
 
 def evaluate(model):
@@ -107,27 +92,37 @@ def evaluate(model):
     with open(filename, 'r') as file:
         lines = file.readlines()
 
+    transformer = data_transforms['val']
+
     angles = []
 
-    elapsed = 0
+    start = time.time()
+    with torch.no_grad():
+        for line in tqdm(lines):
+            tokens = line.split()
+            file0 = tokens[0]
+            img0 = get_image(samples, transformer, file0)
+            file1 = tokens[1]
+            img1 = get_image(samples, transformer, file1)
+            imgs = torch.zeros([2, 3, 112, 112], dtype=torch.float, device=device)
+            imgs[0] = img0
+            imgs[1] = img1
 
-    for line in tqdm(lines):
-        tokens = line.split()
+            output = model(imgs)
 
-        start = time.time()
-        x0 = get_feature(model, samples, tokens[0])
-        x1 = get_feature(model, samples, tokens[1])
-        end = time.time()
-        elapsed += end - start
+            feature0 = output[0].cpu().numpy()
+            feature1 = output[1].cpu().numpy()
+            x0 = feature0 / np.linalg.norm(feature0)
+            x1 = feature1 / np.linalg.norm(feature1)
+            cosine = np.dot(x0, x1)
+            cosine = np.clip(cosine, -1.0, 1.0)
+            theta = math.acos(cosine)
+            theta = theta * 180 / math.pi
+            is_same = tokens[2]
+            angles.append('{} {}\n'.format(theta, is_same))
 
-        cosine = np.dot(x0, x1)
-        cosine = np.clip(cosine, -1.0, 1.0)
-        theta = math.acos(cosine)
-        theta = theta * 180 / math.pi
-        is_same = tokens[2]
-        angles.append('{} {}\n'.format(theta, is_same))
-
-    print('elapsed: {} ms'.format(elapsed / (6000 * 2) * 1000))
+    elapsed_time = time.time() - start
+    print('elapsed time(sec) per image: {}'.format(elapsed_time / (6000 * 2)))
 
     with open('data/angles.txt', 'w') as file:
         file.writelines(angles)
@@ -175,9 +170,8 @@ def visualize(threshold):
 
     plt.legend(loc='upper right')
     plt.plot([threshold, threshold], [0, 0.05], 'k-', lw=2)
-    ensure_folder('images')
     plt.savefig('images/theta_dist.png')
-    # plt.show()
+    plt.show()
 
 
 def accuracy(threshold):
@@ -266,7 +260,7 @@ def error_analysis(threshold):
 
 def save_aligned(old_fn, new_fn):
     old_fn = os.path.join('data/lfw_funneled', old_fn)
-    is_valid, bounding_boxes, landmarks = get_central_face_attributes(old_fn)
+    _, landmarks = get_central_face_attributes(old_fn)
     img = align_face(old_fn, landmarks)
     new_fn = os.path.join('images', new_fn)
     cv.imwrite(new_fn, img)
@@ -275,8 +269,8 @@ def save_aligned(old_fn, new_fn):
 def copy_file(old, new):
     old_fn = os.path.join('data/lfw_funneled', old)
     img = cv.imread(old_fn)
-    bounding_boxes, landmarks = get_all_face_attributes(old_fn)
-    draw_bboxes(img, bounding_boxes, landmarks)
+    bboxes, landmarks = get_all_face_attributes(old_fn)
+    draw_bboxes(img, bboxes, landmarks)
     cv.resize(img, (224, 224))
     new_fn = os.path.join('images', new)
     cv.imwrite(new_fn, img)
@@ -334,14 +328,9 @@ def lfw_test(model):
 
 
 if __name__ == "__main__":
-    # checkpoint = 'BEST_checkpoint.tar'
-    # checkpoint = torch.load(checkpoint)
-    # model = checkpoint['model'].module
-    # model = model.to(device)
-    # model.eval()
-
-    scripted_model_file = 'mobilefacenet_scripted.pt'
-    model = torch.jit.load(scripted_model_file)
+    checkpoint = 'BEST_checkpoint.tar'
+    checkpoint = torch.load(checkpoint)
+    model = checkpoint['model'].module
     model = model.to(device)
     model.eval()
 
