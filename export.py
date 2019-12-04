@@ -11,7 +11,7 @@ if __name__ == '__main__':
     model = checkpoint['model'].module
     print(type(model))
 
-    filename = 'mobilefacenet.pt'
+    filename = 'mobilefacenet_grayscale.pt'
     print('saving {}...'.format(filename))
     start = time.time()
     torch.save(model.state_dict(), filename)
@@ -23,6 +23,6 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(filename))
     print('elapsed {} sec'.format(time.time() - start))
 
-    scripted_model_file = 'mobilefacenet_scripted.pt'
+    scripted_model_file = 'mobilefacenet_grayscale_scripted.pt'
     print('saving {}...'.format(scripted_model_file))
     torch.jit.save(torch.jit.script(model), scripted_model_file)

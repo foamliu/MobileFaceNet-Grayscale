@@ -8,8 +8,8 @@ import cv2 as cv
 import numpy as np
 import scipy.stats
 import torch
-from PIL import Image
 from matplotlib import pyplot as plt
+from torchvision import transforms
 from tqdm import tqdm
 
 from config import device
@@ -76,23 +76,22 @@ def get_image(samples, file):
 def transform(img, flip=False):
     if flip:
         img = cv.flip(img, 1)
-    img = img[..., ::-1]  # RGB
-    img = Image.fromarray(img, 'RGB')  # RGB
+    img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+    img = transforms.ToPILImage()(img)
     img = transformer(img)
     img = img.to(device)
     return img
 
 
 def get_feature(model, samples, file):
-    imgs = torch.zeros([2, 3, 112, 112], dtype=torch.float, device=device)
     img = get_image(samples, file)
-    imgs[0] = transform(img.copy(), False)
-    imgs[1] = transform(img.copy(), True)
+    img = transform(img)
+    imgs = img.unsqueeze(dim=0)
+
     with torch.no_grad():
         output = model(imgs)
-    feature_0 = output[0].cpu().numpy()
-    feature_1 = output[1].cpu().numpy()
-    feature = feature_0 + feature_1
+
+    feature = output[0].cpu().numpy()
     return feature / np.linalg.norm(feature)
 
 

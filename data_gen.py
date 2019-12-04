@@ -1,10 +1,10 @@
 import os
 import pickle
 
-from PIL import Image
+import cv2 as cv
 from torch.utils.data import Dataset
 from torchvision import transforms
-import cv2 as cv
+
 from config import IMG_DIR, pickle_file
 
 # Data augmentation and normalization for training
