@@ -5,7 +5,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 from config import device, grad_clip, print_freq, num_workers
 from data_gen import ArcFaceDataset
-from focal_loss import FocalLoss
 from lfw_eval import lfw_test
 from mobilefacenet import MobileFaceNet, ArcMarginModel
 from optimizer import MFNptimizer
@@ -55,10 +54,7 @@ def train_net(args):
     metric_fc = metric_fc.to(device)
 
     # Loss function
-    if args.focal_loss:
-        criterion = FocalLoss(gamma=args.gamma)
-    else:
-        criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
 
     # Custom dataloaders
     train_dataset = ArcFaceDataset('train')
