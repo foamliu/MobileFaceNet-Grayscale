@@ -15,7 +15,7 @@ PyTorch implementation of MobileFaceNets: Efficient CNNs for Accurate Real-Time 
 ## Dataset
 ### Introduction
 
-Refined MS-Celeb-1M dataset for training, 3,804,846 faces over 85,164 identities. 
+Refined MS-Celeb-1M dataset for training, 5,179,510 faces over 93,431 identities. 
 LFW and Megaface datasets for testing.
 
 ## Dependencies

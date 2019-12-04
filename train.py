@@ -1,14 +1,14 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 
-from config import device, grad_clip, print_freq
+from config import device, grad_clip, print_freq, num_workers
 from data_gen import ArcFaceDataset
 from focal_loss import FocalLoss
 from lfw_eval import lfw_test
 from mobilefacenet import MobileFaceNet, ArcMarginModel
+from optimizer import MFNptimizer
 from utils import parse_args, save_checkpoint, AverageMeter, accuracy, get_logger, clip_gradient
 
 
@@ -26,20 +26,19 @@ def train_net(args):
         model = MobileFaceNet()
         metric_fc = ArcMarginModel(args)
 
-        optimizer = torch.optim.SGD([{'params': model.conv1.parameters()},
-                                     {'params': model.dw_conv.parameters()},
-                                     {'params': model.features.parameters()},
-                                     {'params': model.conv2.parameters()},
-                                     {'params': model.gdconv.parameters()},
-                                     {'params': model.conv3.parameters(), 'weight_decay': 4e-4},
-                                     {'params': model.bn.parameters()},
-                                     {'params': metric_fc.parameters()}],
-                                    lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay, nesterov=True)
+        optimizer = MFNptimizer(torch.optim.SGD([{'params': model.conv1.parameters()},
+                                                 {'params': model.dw_conv.parameters()},
+                                                 {'params': model.features.parameters()},
+                                                 {'params': model.conv2.parameters()},
+                                                 {'params': model.gdconv.parameters()},
+                                                 {'params': model.conv3.parameters(), 'weight_decay': 4e-4},
+                                                 {'params': model.bn.parameters()},
+                                                 {'params': metric_fc.parameters()}],
+                                                lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay,
+                                                nesterov=True))
 
         model = nn.DataParallel(model)
         metric_fc = nn.DataParallel(metric_fc)
-
-        scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30, 40], gamma=0.1)
 
     else:
         checkpoint = torch.load(checkpoint)
@@ -58,13 +57,14 @@ def train_net(args):
 
     # Loss function
     if args.focal_loss:
-        criterion = FocalLoss(gamma=args.gamma).to(device)
+        criterion = FocalLoss(gamma=args.gamma)
     else:
-        criterion = nn.CrossEntropyLoss().to(device)
+        criterion = nn.CrossEntropyLoss()
 
     # Custom dataloaders
     train_dataset = ArcFaceDataset('train')
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
+                                               num_workers=num_workers)
 
     # Epochs
     for epoch in range(start_epoch, args.end_epoch):
@@ -100,7 +100,6 @@ def train_net(args):
 
         # Save checkpoint
         save_checkpoint(epoch, epochs_since_improvement, model, metric_fc, optimizer, best_acc, is_best)
-        scheduler.step(epoch)
 
 
 def train(train_loader, model, metric_fc, criterion, optimizer, epoch, logger):
@@ -117,8 +116,8 @@ def train(train_loader, model, metric_fc, criterion, optimizer, epoch, logger):
         label = label.to(device)  # [N, 1]
 
         # Forward prop.
-        feature = model(img)  # embedding => [N, 512]
-        output = metric_fc(feature, label)  # class_id_out => [N, 10575]
+        feature = model(img)  # embedding => [N, 128]
+        output = metric_fc(feature, label)  # class_id_out => [N, 93431]
 
         # Calculate loss
         loss = criterion(output, label)
