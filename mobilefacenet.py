@@ -216,4 +216,4 @@ if __name__ == "__main__":
 
     model = MobileFaceNet()
     # print(model)
-    scope(model, input_size=(3, 112, 112))
+    scope(model, input_size=(1, 112, 112))
