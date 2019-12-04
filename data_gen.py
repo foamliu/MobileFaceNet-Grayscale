@@ -38,9 +38,8 @@ class ArcFaceDataset(Dataset):
         filename = os.path.join(IMG_DIR, filename)
         img = cv.imread(filename, cv.IMREAD_GRAYSCALE)
         img = transforms.ToPILImage()(img)
-        print(img.size())
         img = self.transformer(img)
-
+        print(img.size())
         label = sample['label']
 
         return img, label
