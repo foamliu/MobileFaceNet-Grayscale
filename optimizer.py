@@ -15,7 +15,7 @@ class MFNptimizer(object):
 
     def _update_lr(self):
         self.step_num += 1
-        if self.step_num in [36000*4, 52000*4, 58000*4]:
+        if self.step_num in [36000*2, 52000*2, 58000*2]:
             self.lr = self.lr / 10
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = self.lr
