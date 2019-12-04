@@ -4,7 +4,7 @@ import pickle
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-
+import cv2 as cv
 from config import IMG_DIR, pickle_file
 
 # Data augmentation and normalization for training
@@ -12,7 +12,6 @@ from config import IMG_DIR, pickle_file
 data_transforms = {
     'train': transforms.Compose([
         transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(brightness=0.125, contrast=0.125, saturation=0.125),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ]),
@@ -37,7 +36,9 @@ class ArcFaceDataset(Dataset):
         sample = self.samples[i]
         filename = sample['img']
         filename = os.path.join(IMG_DIR, filename)
-        img = Image.open(filename).convert('RGB')
+        img = cv.imread(filename, cv.IMREAD_GRAYSCALE)
+        img = transforms.ToPILImage()(img)
+        print(img.size())
         img = self.transformer(img)
 
         label = sample['label']
