@@ -76,12 +76,11 @@ def train_net(args):
                                       epoch=epoch,
                                       logger=logger)
 
-        lr = optimizer.param_groups[0]['lr']
-        print('\nLearning rate={}\n'.format(lr))
+        print('\nLearning rate={}, step number={}\n'.format(optimizer.lr, optimizer.step_num))
 
         writer.add_scalar('model/train_loss', train_loss, epoch)
         writer.add_scalar('model/train_acc', train_acc, epoch)
-        writer.add_scalar('model/learning_rate', lr, epoch)
+        writer.add_scalar('model/learning_rate', optimizer.lr, epoch)
 
         # One epoch's validation
         lfw_acc, threshold = lfw_test(model)
