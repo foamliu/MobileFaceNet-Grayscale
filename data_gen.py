@@ -38,6 +38,7 @@ class ArcFaceDataset(Dataset):
         img = transforms.ToPILImage()(img)
         img = self.transformer(img)
         label = sample['label']
+        print(img)
 
         return img, label
 
