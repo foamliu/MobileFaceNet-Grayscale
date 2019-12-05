@@ -311,7 +311,7 @@ def lfw_test(model):
 
     # if not os.path.isfile(lfw_pickle):
     print('Processing {}...'.format(lfw_pickle))
-    # process()
+    process()
 
     # if not os.path.isfile(angles_file):
     print('Evaluating {}...'.format(angles_file))
@@ -327,15 +327,15 @@ def lfw_test(model):
 
 
 if __name__ == "__main__":
-    # checkpoint = 'BEST_checkpoint.tar'
-    # checkpoint = torch.load(checkpoint)
-    # model = checkpoint['model'].module
-    # model = model.to(device)
-    # model.eval()
-
-    model = MobileFaceNet()
+    checkpoint = 'BEST_checkpoint.tar'
+    checkpoint = torch.load(checkpoint)
+    model = checkpoint['model'].module
     model = model.to(device)
     model.eval()
+
+    # model = MobileFaceNet()
+    # model = model.to(device)
+    # model.eval()
 
     acc, threshold = lfw_test(model)
 
