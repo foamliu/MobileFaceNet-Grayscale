@@ -103,7 +103,7 @@ def evaluate(model):
             img0 = get_image(samples, transformer, file0)
             file1 = tokens[1]
             img1 = get_image(samples, transformer, file1)
-            imgs = torch.zeros([2, 3, 112, 112], dtype=torch.float, device=device)
+            imgs = torch.zeros([2, 1, 112, 112], dtype=torch.float, device=device)
             imgs[0] = img0
             imgs[1] = img1
 
