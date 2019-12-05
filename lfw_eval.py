@@ -11,7 +11,7 @@ import torch
 from matplotlib import pyplot as plt
 from torchvision import transforms
 from tqdm import tqdm
-
+from mobilefacenet import MobileFaceNet
 from config import device
 from data_gen import data_transforms
 from utils import align_face, get_central_face_attributes, get_all_face_attributes, draw_bboxes
@@ -311,7 +311,7 @@ def lfw_test(model):
 
     # if not os.path.isfile(lfw_pickle):
     print('Processing {}...'.format(lfw_pickle))
-    process()
+    # process()
 
     # if not os.path.isfile(angles_file):
     print('Evaluating {}...'.format(angles_file))
@@ -327,9 +327,13 @@ def lfw_test(model):
 
 
 if __name__ == "__main__":
-    checkpoint = 'BEST_checkpoint.tar'
-    checkpoint = torch.load(checkpoint)
-    model = checkpoint['model'].module
+    # checkpoint = 'BEST_checkpoint.tar'
+    # checkpoint = torch.load(checkpoint)
+    # model = checkpoint['model'].module
+    # model = model.to(device)
+    # model.eval()
+
+    model = MobileFaceNet()
     model = model.to(device)
     model.eval()
 
