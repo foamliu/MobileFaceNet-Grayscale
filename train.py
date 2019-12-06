@@ -89,7 +89,7 @@ def train_net(args):
 
         writer.add_scalar('model/train_loss', train_loss, epoch)
         writer.add_scalar('model/train_acc', train_acc, epoch)
-        writer.add_scalar('model/learning_rate', optimizer.lr, epoch)
+        writer.add_scalar('model/learning_rate', lr, epoch)
 
         # One epoch's validation
         lfw_acc, threshold = lfw_test(model)
