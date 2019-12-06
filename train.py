@@ -1,13 +1,13 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.tensorboard import SummaryWriter
 
 from config import device, grad_clip, print_freq, num_workers
 from data_gen import ArcFaceDataset
 from lfw_eval import lfw_test
 from mobilefacenet import MobileFaceNet, ArcMarginModel
-from optimizer import MFNptimizer
 from utils import parse_args, save_checkpoint, AverageMeter, accuracy, get_logger
 
 
@@ -25,16 +25,26 @@ def train_net(args):
         model = MobileFaceNet()
         metric_fc = ArcMarginModel(args)
 
-        optimizer = MFNptimizer(torch.optim.SGD([{'params': model.conv1.parameters()},
-                                                 {'params': model.dw_conv.parameters()},
-                                                 {'params': model.features.parameters()},
-                                                 {'params': model.conv2.parameters()},
-                                                 {'params': model.gdconv.parameters()},
-                                                 {'params': model.conv3.parameters(), 'weight_decay': 4e-4},
-                                                 {'params': model.bn.parameters()},
-                                                 {'params': metric_fc.parameters()}],
-                                                lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay,
-                                                nesterov=True))
+        # optimizer = MFNptimizer(torch.optim.SGD([{'params': model.conv1.parameters()},
+        #                                          {'params': model.dw_conv.parameters()},
+        #                                          {'params': model.features.parameters()},
+        #                                          {'params': model.conv2.parameters()},
+        #                                          {'params': model.gdconv.parameters()},
+        #                                          {'params': model.conv3.parameters(), 'weight_decay': 4e-4},
+        #                                          {'params': model.bn.parameters()},
+        #                                          {'params': metric_fc.parameters()}],
+        #                                         lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay,
+        #                                         nesterov=True))
+        optimizer = torch.optim.SGD([{'params': model.conv1.parameters()},
+                                     {'params': model.dw_conv.parameters()},
+                                     {'params': model.features.parameters()},
+                                     {'params': model.conv2.parameters()},
+                                     {'params': model.gdconv.parameters()},
+                                     {'params': model.conv3.parameters(), 'weight_decay': 4e-4},
+                                     {'params': model.bn.parameters()},
+                                     {'params': metric_fc.parameters()}],
+                                    lr=args.lr, momentum=args.mom, weight_decay=args.weight_decay,
+                                    nesterov=True)
 
         model = nn.DataParallel(model)
         metric_fc = nn.DataParallel(metric_fc)
@@ -61,6 +71,8 @@ def train_net(args):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
                                                num_workers=num_workers)
 
+    scheduler = MultiStepLR(optimizer, milestones=[10, 20, 30, 40], gamma=0.1)
+
     # Epochs
     for epoch in range(start_epoch, args.end_epoch):
         # One epoch's training
@@ -82,6 +94,8 @@ def train_net(args):
         lfw_acc, threshold = lfw_test(model)
         writer.add_scalar('model/valid_acc', lfw_acc, epoch)
         writer.add_scalar('model/valid_thres', threshold, epoch)
+
+        scheduler.step(epoch)
 
         # Check if there was an improvement
         is_best = lfw_acc > best_acc
