@@ -84,7 +84,8 @@ def train_net(args):
                                       epoch=epoch,
                                       logger=logger)
 
-        print('\nLearning rate={}, step number={}\n'.format(optimizer.lr, optimizer.step_num))
+        lr = optimizer.param_groups[0]['lr']
+        print('\nLearning rate={}\n'.format(lr))
 
         writer.add_scalar('model/train_loss', train_loss, epoch)
         writer.add_scalar('model/train_acc', train_acc, epoch)
@@ -135,7 +136,8 @@ def train(train_loader, model, metric_fc, criterion, optimizer, epoch, logger):
         loss.backward()
 
         # Clip gradients
-        optimizer.clip_gradient(grad_clip)
+        # optimizer.clip_gradient(grad_clip)
+        clip_gradient(optimizer, grad_clip)
 
         # Update weights
         optimizer.step()
