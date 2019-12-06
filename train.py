@@ -8,7 +8,7 @@ from config import device, grad_clip, print_freq, num_workers
 from data_gen import ArcFaceDataset
 from lfw_eval import lfw_test
 from mobilefacenet import MobileFaceNet, ArcMarginModel
-from utils import parse_args, save_checkpoint, AverageMeter, accuracy, get_logger
+from utils import parse_args, save_checkpoint, AverageMeter, accuracy, get_logger, clip_gradient
 
 
 def train_net(args):
