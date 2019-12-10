@@ -5,9 +5,9 @@ PyTorch implementation of MobileFaceNets: Efficient CNNs for Accurate Real-Time 
 
 ## Features
 
-1.Black-and-white photos are used for training/validation.
-2.Retinaface & similarity transform is used for face alignment.
-3.Lightweight: Params size (MB): 0.95, FLOPs size (GB): 0.24.
+1. Black-and-white photos for training/validation.
+2. Retinaface & similarity transform for face alignment.
+3. Lightweight: Params size (MB): 0.95, FLOPs size (GB): 0.24.
 
 ## Performance
 
